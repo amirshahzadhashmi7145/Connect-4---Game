@@ -15,7 +15,7 @@ export function App() {
   const [scores, setScores] = useState({ player1: 0, player2: 0, draws: 0 });
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
   const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('pvp');
-  const [difficulty, setDifficulty] = useState<AIDifficulty>('hard');
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('Hard');
   const [isAIThinking, setIsAIThinking] = useState(false);
 
   const makeMoveAt = (col: number) => {
@@ -98,60 +98,78 @@ export function App() {
           Connect 4
         </h1>
 
-        {/* Game Mode Selector */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
-          <button
-            type="button"
-            data-testid="mode-pvp"
-            onClick={() => handleModeChange('pvp')}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-              gameMode === 'pvp'
-                ? 'bg-blue-950/80 border border-blue-500 text-blue-300 shadow-sm shadow-blue-500/20'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            2 Players
-          </button>
-          <button
-            type="button"
-            data-testid="mode-ai"
-            onClick={() => handleModeChange('ai')}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-              gameMode === 'ai'
-                ? 'bg-purple-950/80 border border-purple-500 text-purple-300 shadow-sm shadow-purple-500/20'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            Play vs AI
-          </button>
-        </div>
-
-        {/* AI Difficulty Selector */}
-        {gameMode === 'ai' && (
+        {/* Game Setup Area */}
+        <section
+          aria-label="Game Setup"
+          data-testid="game-setup"
+          className="w-full flex flex-col items-center gap-2 mb-3"
+        >
+          {/* Game Mode Selector */}
           <div
-            data-testid="difficulty-selector"
-            className="flex items-center gap-1.5 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-lg text-xs"
+            data-testid="mode-selector"
+            aria-label="Game Mode"
+            className="flex flex-wrap items-center justify-center gap-2 mb-1"
           >
-            <span className="text-slate-400 font-medium mr-1">AI Difficulty:</span>
-            {(['easy', 'medium', 'hard'] as const).map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                data-testid={`difficulty-${lvl}`}
-                onClick={() => setDifficulty(lvl)}
-                className={`px-2.5 py-0.5 rounded capitalize transition-all cursor-pointer font-medium ${
-                  difficulty.toLowerCase() === lvl
-                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
+            <button
+              type="button"
+              aria-pressed={gameMode === 'pvp'}
+              data-testid="mode-local-multiplayer"
+              onClick={() => handleModeChange('pvp')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                gameMode === 'pvp'
+                  ? 'bg-blue-950/80 border border-blue-500 text-blue-300 shadow-sm shadow-blue-500/20 ring-1 ring-blue-500/40'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span data-testid="mode-pvp">Local Multiplayer</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={gameMode === 'ai'}
+              data-testid="mode-single-player"
+              onClick={() => handleModeChange('ai')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                gameMode === 'ai'
+                  ? 'bg-purple-950/80 border border-purple-500 text-purple-300 shadow-sm shadow-purple-500/20 ring-1 ring-purple-500/40'
+                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span data-testid="mode-ai">Single Player</span>
+            </button>
           </div>
-        )}
+
+          {/* AI Difficulty Selector */}
+          {gameMode === 'ai' && (
+            <div
+              data-testid="difficulty-selector"
+              aria-label="AI Difficulty"
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-lg text-xs"
+            >
+              <span className="text-slate-400 font-medium mr-1">Difficulty:</span>
+              {(['Easy', 'Medium', 'Hard'] as const).map((lvl) => {
+                const isSelected = difficulty.toLowerCase() === lvl.toLowerCase();
+                return (
+                  <button
+                    key={lvl}
+                    type="button"
+                    aria-pressed={isSelected}
+                    data-testid={`difficulty-${lvl.toLowerCase()}`}
+                    onClick={() => setDifficulty(lvl)}
+                    className={`px-2.5 py-0.5 rounded capitalize transition-all cursor-pointer font-medium ${
+                      isSelected
+                        ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span data-testid={`difficulty-${lvl}`}>{lvl}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </header>
 
       {/* Main Content Area */}
@@ -205,7 +223,7 @@ export function App() {
                 }`}
               />
               <span>
-                {isAIThinking
+                {isAIThinking || (gameMode === 'ai' && gameState.currentPlayer === 2)
                   ? 'AI is thinking...'
                   : `Player ${gameState.currentPlayer}'s Turn (${
                       gameState.currentPlayer === 1 ? 'Red' : 'Yellow'
@@ -219,7 +237,11 @@ export function App() {
         <Connect4Board
           board={gameState.board}
           currentPlayer={gameState.currentPlayer}
-          isGameOver={isGameOver || isAIThinking}
+          isGameOver={
+            isGameOver ||
+            isAIThinking ||
+            (gameMode === 'ai' && gameState.currentPlayer === 2)
+          }
           winningCells={gameState.winningCells}
           onDropPiece={handleDropPiece}
           hoveredCol={hoveredCol}
