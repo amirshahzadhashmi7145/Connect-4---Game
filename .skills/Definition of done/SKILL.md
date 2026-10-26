@@ -1,0 +1,1 @@
+Every criterion needs evidence in the summary. The build and tests run once more after the last edit. Unmet criteria are follow-ups, not a silent pass.

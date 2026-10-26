@@ -203,7 +203,72 @@ describe('Connect 4 UI Application', () => {
     }
   });
 
-  it('allows toggling between 2 Players and Play vs AI mode', () => {
+  it('renders game setup controls with Local Multiplayer and Single Player options', () => {
+    render(<App />);
+
+    expect(screen.getByTestId('game-setup')).toBeDefined();
+    expect(screen.getByText('Local Multiplayer')).toBeDefined();
+    expect(screen.getByText('Single Player')).toBeDefined();
+
+    const localBtn = screen.getByRole('button', { name: /local multiplayer/i });
+    const singleBtn = screen.getByRole('button', { name: /single player/i });
+    expect(localBtn).toBeDefined();
+    expect(singleBtn).toBeDefined();
+
+    // Default mode is Local Multiplayer, so difficulty options are not rendered
+    expect(localBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(singleBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByTestId('difficulty-selector')).toBeNull();
+    expect(screen.queryByText('Easy')).toBeNull();
+    expect(screen.queryByText('Medium')).toBeNull();
+    expect(screen.queryByText('Hard')).toBeNull();
+  });
+
+  it('updates state and renders Easy, Medium, Hard difficulty options when Single Player is selected', () => {
+    render(<App />);
+
+    const singleBtn = screen.getByRole('button', { name: /single player/i });
+    fireEvent.click(singleBtn);
+
+    // Single Player is now selected
+    expect(singleBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: /local multiplayer/i }).getAttribute('aria-pressed')).toBe('false');
+
+    // Difficulty options are now displayed
+    expect(screen.getByTestId('difficulty-selector')).toBeDefined();
+    const easyBtn = screen.getByRole('button', { name: /easy/i });
+    const mediumBtn = screen.getByRole('button', { name: /medium/i });
+    const hardBtn = screen.getByRole('button', { name: /hard/i });
+
+    expect(easyBtn).toBeDefined();
+    expect(mediumBtn).toBeDefined();
+    expect(hardBtn).toBeDefined();
+
+    // Default difficulty is Hard
+    expect(hardBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Selecting Easy difficulty updates selection state
+    fireEvent.click(easyBtn);
+    expect(easyBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(hardBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Selecting Medium difficulty updates selection state
+    fireEvent.click(mediumBtn);
+    expect(mediumBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(easyBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Selecting Hard difficulty updates selection state
+    fireEvent.click(hardBtn);
+    expect(hardBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(mediumBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Switching back to Local Multiplayer hides difficulty options
+    fireEvent.click(screen.getByRole('button', { name: /local multiplayer/i }));
+    expect(screen.queryByTestId('difficulty-selector')).toBeNull();
+    expect(screen.queryByText('Easy')).toBeNull();
+  });
+
+  it('allows toggling between Local Multiplayer and Single Player mode using testids', () => {
     render(<App />);
 
     const modePvPBtn = screen.getByTestId('mode-pvp');
@@ -231,19 +296,20 @@ describe('Connect 4 UI Application', () => {
     expect(screen.queryByTestId('difficulty-selector')).toBeNull();
   });
 
-  it('triggers AI response move when playing against AI', () => {
+  it('triggers AI response move with a short delay when it is the AI turn in Single Player mode', () => {
     vi.useFakeTimers();
     render(<App />);
 
-    // Switch to Play vs AI
-    fireEvent.click(screen.getByTestId('mode-ai'));
+    // Switch to Single Player
+    fireEvent.click(screen.getByRole('button', { name: /single player/i }));
 
     // Player 1 drops in col 3
     fireEvent.click(screen.getByTestId('column-button-3'));
     expect(screen.getByTestId('cell-5-3').getAttribute('data-player')).toBe('1');
 
-    // Status banner shows AI thinking
+    // Status banner shows AI thinking and column buttons are disabled
     expect(screen.getByTestId('status-message').textContent).toContain('AI is thinking...');
+    expect(screen.getByTestId('column-button-3').hasAttribute('disabled')).toBe(true);
 
     // Fast-forward AI thinking timeout
     act(() => {
@@ -262,8 +328,38 @@ describe('Connect 4 UI Application', () => {
     }
     expect(p2PieceFound).toBe(true);
 
-    // Back to Player 1 turn
+    // Back to Player 1 turn and column buttons are active
     expect(screen.getByTestId('status-message').textContent).toContain("Player 1's Turn (Red)");
+    expect(screen.getByTestId('column-button-0').hasAttribute('disabled')).toBe(false);
+
+    vi.useRealTimers();
+  });
+
+  it('does not trigger automated AI move in Local Multiplayer mode', () => {
+    vi.useFakeTimers();
+    render(<App />);
+
+    // Player 1 drops in col 3
+    fireEvent.click(screen.getByTestId('column-button-3'));
+    expect(screen.getByTestId('cell-5-3').getAttribute('data-player')).toBe('1');
+    expect(screen.getByTestId('status-message').textContent).toContain("Player 2's Turn (Yellow)");
+
+    // Fast forward timer - no AI move should occur in Local Multiplayer mode
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    let p2PieceFound = false;
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (screen.getByTestId(`cell-${r}-${c}`).getAttribute('data-player') === '2') {
+          p2PieceFound = true;
+          break;
+        }
+      }
+    }
+    expect(p2PieceFound).toBe(false);
+    expect(screen.getByTestId('status-message').textContent).toContain("Player 2's Turn (Yellow)");
 
     vi.useRealTimers();
   });
