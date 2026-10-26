@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Trophy, RotateCcw, Swords, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, RotateCcw, HelpCircle, Bot, Users } from 'lucide-react';
 import {
   initialGameState,
   playMove,
   GameState,
   Player,
 } from './game/connect4';
+import { getAIMove, AIDifficulty } from './game/ai';
 import { Connect4Board } from './components/Connect4Board';
 import { ScoreBoard } from './components/ScoreBoard';
 
@@ -13,32 +14,66 @@ export function App() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [scores, setScores] = useState({ player1: 0, player2: 0, draws: 0 });
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
+  const [gameMode, setGameMode] = useState<'pvp' | 'ai'>('pvp');
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('hard');
+  const [isAIThinking, setIsAIThinking] = useState(false);
+
+  const makeMoveAt = (col: number) => {
+    setGameState((prevState) => {
+      if (prevState.status !== 'playing') return prevState;
+
+      const nextState = playMove(prevState, col);
+      if (nextState === prevState) return prevState;
+
+      if (nextState.status === 'won' && nextState.winner) {
+        setScores((prev) => ({
+          ...prev,
+          [nextState.winner === 1 ? 'player1' : 'player2']:
+            prev[nextState.winner === 1 ? 'player1' : 'player2'] + 1,
+        }));
+      } else if (nextState.status === 'draw') {
+        setScores((prev) => ({
+          ...prev,
+          draws: prev.draws + 1,
+        }));
+      }
+
+      return nextState;
+    });
+  };
 
   const handleDropPiece = (col: number) => {
     if (gameState.status !== 'playing') return;
-
-    const nextState = playMove(gameState, col);
-    if (nextState === gameState) return; // Column full or invalid
-
-    setGameState(nextState);
-
-    if (nextState.status === 'won' && nextState.winner) {
-      setScores((prev) => ({
-        ...prev,
-        [nextState.winner === 1 ? 'player1' : 'player2']:
-          prev[nextState.winner === 1 ? 'player1' : 'player2'] + 1,
-      }));
-    } else if (nextState.status === 'draw') {
-      setScores((prev) => ({
-        ...prev,
-        draws: prev.draws + 1,
-      }));
-    }
+    if (isAIThinking || (gameMode === 'ai' && gameState.currentPlayer === 2)) return;
+    makeMoveAt(col);
   };
+
+  // AI move automation
+  useEffect(() => {
+    if (
+      gameMode !== 'ai' ||
+      gameState.currentPlayer !== 2 ||
+      gameState.status !== 'playing'
+    ) {
+      return;
+    }
+
+    setIsAIThinking(true);
+    const timer = setTimeout(() => {
+      const bestCol = getAIMove(gameState.board, 2, difficulty);
+      if (bestCol !== -1) {
+        makeMoveAt(bestCol);
+      }
+      setIsAIThinking(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [gameState.currentPlayer, gameState.status, gameState.board, gameMode, difficulty]);
 
   const handleResetGame = () => {
     setGameState(initialGameState());
     setHoveredCol(null);
+    setIsAIThinking(false);
   };
 
   const handleResetScores = () => {
@@ -46,19 +81,77 @@ export function App() {
     handleResetGame();
   };
 
+  const handleModeChange = (mode: 'pvp' | 'ai') => {
+    setGameMode(mode);
+    setGameState(initialGameState());
+    setHoveredCol(null);
+    setIsAIThinking(false);
+  };
+
   const isGameOver = gameState.status !== 'playing';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-between p-4 sm:p-6 font-sans antialiased selection:bg-blue-600 selection:text-white">
       {/* Header */}
-      <header className="w-full max-w-xl flex flex-col items-center text-center mt-2 mb-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-2">
-          <Swords className="w-3.5 h-3.5" />
-          Local 2-Player Game
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+      <header className="w-full max-w-xl flex flex-col items-center text-center mt-2 mb-3">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent mb-3">
           Connect 4
         </h1>
+
+        {/* Game Mode Selector */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-2">
+          <button
+            type="button"
+            data-testid="mode-pvp"
+            onClick={() => handleModeChange('pvp')}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+              gameMode === 'pvp'
+                ? 'bg-blue-950/80 border border-blue-500 text-blue-300 shadow-sm shadow-blue-500/20'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            2 Players
+          </button>
+          <button
+            type="button"
+            data-testid="mode-ai"
+            onClick={() => handleModeChange('ai')}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+              gameMode === 'ai'
+                ? 'bg-purple-950/80 border border-purple-500 text-purple-300 shadow-sm shadow-purple-500/20'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            Play vs AI
+          </button>
+        </div>
+
+        {/* AI Difficulty Selector */}
+        {gameMode === 'ai' && (
+          <div
+            data-testid="difficulty-selector"
+            className="flex items-center gap-1.5 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-lg text-xs"
+          >
+            <span className="text-slate-400 font-medium mr-1">AI Difficulty:</span>
+            {(['easy', 'medium', 'hard'] as const).map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                data-testid={`difficulty-${lvl}`}
+                onClick={() => setDifficulty(lvl)}
+                className={`px-2.5 py-0.5 rounded capitalize transition-all cursor-pointer font-medium ${
+                  difficulty.toLowerCase() === lvl
+                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Main Content Area */}
@@ -106,12 +199,17 @@ export function App() {
             <div className="flex items-center gap-2" data-testid="current-turn">
               <span
                 className={`w-3.5 h-3.5 rounded-full inline-block animate-pulse ${
-                  gameState.currentPlayer === 1 ? 'bg-red-500 shadow-sm shadow-red-500' : 'bg-amber-400 shadow-sm shadow-amber-400'
+                  gameState.currentPlayer === 1
+                    ? 'bg-red-500 shadow-sm shadow-red-500'
+                    : 'bg-amber-400 shadow-sm shadow-amber-400'
                 }`}
               />
               <span>
-                Player {gameState.currentPlayer}&apos;s Turn (
-                {gameState.currentPlayer === 1 ? 'Red' : 'Yellow'})
+                {isAIThinking
+                  ? 'AI is thinking...'
+                  : `Player ${gameState.currentPlayer}'s Turn (${
+                      gameState.currentPlayer === 1 ? 'Red' : 'Yellow'
+                    })`}
               </span>
             </div>
           )}
@@ -121,7 +219,7 @@ export function App() {
         <Connect4Board
           board={gameState.board}
           currentPlayer={gameState.currentPlayer}
-          isGameOver={isGameOver}
+          isGameOver={isGameOver || isAIThinking}
           winningCells={gameState.winningCells}
           onDropPiece={handleDropPiece}
           hoveredCol={hoveredCol}

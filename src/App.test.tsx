@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { App } from './App';
 
 describe('Connect 4 UI Application', () => {
@@ -201,5 +201,70 @@ describe('Connect 4 UI Application', () => {
     for (let c = 0; c < 7; c++) {
       expect(screen.getByTestId(`column-button-${c}`).hasAttribute('disabled')).toBe(true);
     }
+  });
+
+  it('allows toggling between 2 Players and Play vs AI mode', () => {
+    render(<App />);
+
+    const modePvPBtn = screen.getByTestId('mode-pvp');
+    const modeAIBtn = screen.getByTestId('mode-ai');
+    expect(modePvPBtn).toBeDefined();
+    expect(modeAIBtn).toBeDefined();
+
+    // In PvP mode, difficulty selector is not rendered
+    expect(screen.queryByTestId('difficulty-selector')).toBeNull();
+
+    // Switch to AI mode
+    fireEvent.click(modeAIBtn);
+    expect(screen.getByTestId('difficulty-selector')).toBeDefined();
+    expect(screen.getByTestId('difficulty-easy')).toBeDefined();
+    expect(screen.getByTestId('difficulty-medium')).toBeDefined();
+    expect(screen.getByTestId('difficulty-hard')).toBeDefined();
+
+    // Select different difficulties
+    fireEvent.click(screen.getByTestId('difficulty-easy'));
+    fireEvent.click(screen.getByTestId('difficulty-medium'));
+    fireEvent.click(screen.getByTestId('difficulty-hard'));
+
+    // Switch back to 2 Players mode
+    fireEvent.click(modePvPBtn);
+    expect(screen.queryByTestId('difficulty-selector')).toBeNull();
+  });
+
+  it('triggers AI response move when playing against AI', () => {
+    vi.useFakeTimers();
+    render(<App />);
+
+    // Switch to Play vs AI
+    fireEvent.click(screen.getByTestId('mode-ai'));
+
+    // Player 1 drops in col 3
+    fireEvent.click(screen.getByTestId('column-button-3'));
+    expect(screen.getByTestId('cell-5-3').getAttribute('data-player')).toBe('1');
+
+    // Status banner shows AI thinking
+    expect(screen.getByTestId('status-message').textContent).toContain('AI is thinking...');
+
+    // Fast-forward AI thinking timeout
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // AI should have made a move as Player 2
+    let p2PieceFound = false;
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (screen.getByTestId(`cell-${r}-${c}`).getAttribute('data-player') === '2') {
+          p2PieceFound = true;
+          break;
+        }
+      }
+    }
+    expect(p2PieceFound).toBe(true);
+
+    // Back to Player 1 turn
+    expect(screen.getByTestId('status-message').textContent).toContain("Player 1's Turn (Red)");
+
+    vi.useRealTimers();
   });
 });
