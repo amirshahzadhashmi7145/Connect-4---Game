@@ -4,3 +4,5 @@ build
 .next
 *.log
 .DS_Store
+conversations
+
